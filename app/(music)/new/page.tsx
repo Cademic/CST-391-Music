@@ -1,27 +1,21 @@
-"use client";
+// app/new/page.tsx
+// ------------------------------------------------------------
+// Reuse the edit page component for the `/new` route.
+// When mounted under `/new`, there is no `albumId` in the URL.
+// The edit page logic detects the absence of `albumId` and
+// automatically switches to "create" mode, using POST instead of PUT.
+// ------------------------------------------------------------
 
-import EditAlbum from "@/components/music/EditAlbum";
-import { AlbumProvider, useAlbums } from "@/components/music/album-context";
-import { useRouter } from "next/navigation";
+// Re-export the default export from the edit route
+export { default } from "../edit/[albumId]/page";
 
-function NewAlbumContent() {
-  const { loadAlbums } = useAlbums();
-  const router = useRouter();
-
-  return (
-    <EditAlbum
-      onEditAlbum={async () => {
-        await loadAlbums();
-        router.push("/");
-      }}
-    />
-  );
-}
-
-export default function NewAlbumPage() {
-  return (
-    <AlbumProvider>
-      <NewAlbumContent />
-    </AlbumProvider>
-  );
-}
+// ------------------------------------------------------------
+// Notes:
+//
+// • This approach exemplifies code reuse. Both the "new" and "edit"
+//   pages share one component, `EditAlbumPage`, which adjusts behavior
+//   based on whether an `albumId` parameter exists.
+//
+// • No `use client` directive is needed here; the imported edit page
+//   already includes it.
+// ------------------------------------------------------------

@@ -70,7 +70,7 @@ export default function Page() {
   };
 
   // CHANGED: replace navigate() with router.push()
-  // Dynamic routes are app/(music)/show/[id] and edit/[id] — URL segment is album id, not array index.
+  // Dynamic routes are app/(music)/show/[id] and edit/[albumId] — URL segment is album id, not array index.
   const updateSingleAlbum = (albumId: number, uri: string) => {
     console.log("Update Single Album = ", albumId);
     const indexNumber = albumList.findIndex((a) => a.id === albumId);
@@ -109,9 +109,7 @@ export default function Page() {
       <SearchAlbum
         updateSearchResults={updateSearchResults}
         albumList={renderedList}
-        updateSingleAlbum={(albumId: number) =>
-          updateSingleAlbum(albumId, "/show/")
-        }
+        updateSingleAlbum={updateSingleAlbum}
       />
 
       <hr className="my-4" />
