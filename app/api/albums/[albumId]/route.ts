@@ -94,99 +94,110 @@ export async function PUT(
   request: NextRequest,
   context: { params: Promise<{ albumId: string }> }
 ) {
+  const { albumId: idParam } = await context.params;
+  const albumId =
+    idParam === "" || idParam == null ? NaN : Number(idParam);
+  if (Number.isNaN(albumId)) {
+    return NextResponse.json({ error: "Invalid album id" }, { status: 400 });
+  }
+
+  let body: unknown;
   try {
-    const { albumId: idParam } = await context.params;
-    const albumId =
-      idParam === "" || idParam == null ? NaN : Number(idParam);
-    if (Number.isNaN(albumId)) {
-      return NextResponse.json({ error: "Invalid album id" }, { status: 400 });
-    }
-
-    const body = await request.json();
-    const { title, artist, year, description, image, tracks } = body;
-    const titleStr = typeof title === "string" ? title.trim() : "";
-    const artistStr = typeof artist === "string" ? artist.trim() : "";
-    if (!titleStr || !artistStr) {
-      return NextResponse.json(
-        { error: "title and artist are required" },
-        { status: 400 }
-      );
-    }
-
-    const yearParsed = parseYear(year);
-    if (!yearParsed.ok) {
-      return NextResponse.json({ error: yearParsed.error }, { status: 400 });
-    }
-    if (yearParsed.value == null) {
-      return NextResponse.json(
-        { error: "year is required for update" },
-        { status: 400 }
-      );
-    }
-
-    const client = await getPool().connect();
-    try {
-      await client.query("BEGIN");
-      const updateRes = await client.query(
-        `UPDATE albums
-         SET title = $1, artist = $2, description = $3, year = $4, image = $5
-         WHERE id = $6`,
-        [
-          titleStr,
-          artistStr,
-          description ?? null,
-          yearParsed.value,
-          image ?? null,
-          albumId,
-        ]
-      );
-      if (updateRes.rowCount === 0) {
-        await client.query("ROLLBACK");
-        return NextResponse.json({ error: "Album not found" }, { status: 404 });
-      }
-
-      await client.query("DELETE FROM tracks WHERE album_id = $1", [albumId]);
-
-      if (Array.isArray(tracks)) {
-        for (const t of tracks as Track[]) {
-          if (t.title == null) continue;
-          const titleTrim = String(t.title).trim();
-          if (!titleTrim) continue;
-          const rawNum = (t as { number?: unknown }).number;
-          let num: number | null =
-            rawNum === "" || rawNum == null ? null : Number(rawNum);
-          if (num != null && Number.isNaN(num)) {
-            await client.query("ROLLBACK");
-            return NextResponse.json(
-              { error: "track.number must be a number" },
-              { status: 400 }
-            );
-          }
-          if (num == null) num = 0;
-          await client.query(
-            `INSERT INTO tracks (album_id, title, number, lyrics, video_url)
-             VALUES ($1, $2, $3, $4, $5)`,
-            [albumId, titleTrim, num, t.lyrics ?? null, t.video ?? null]
-          );
-        }
-      }
-
-      await client.query("COMMIT");
-      return NextResponse.json({ id: albumId }, { status: 200 });
-    } catch (err) {
-      await client.query("ROLLBACK");
-      console.error("PUT /api/albums/[albumId] transaction error:", err);
-      return NextResponse.json(
-        { error: "Error updating album" },
-        { status: 500 }
-      );
-    } finally {
-      client.release();
-    }
+    body = await request.json();
   } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  const { title, artist, year, description, image, tracks } = body as Record<
+    string,
+    unknown
+  >;
+  const titleStr = typeof title === "string" ? title.trim() : "";
+  const artistStr = typeof artist === "string" ? artist.trim() : "";
+  if (!titleStr || !artistStr) {
     return NextResponse.json(
-      { error: "Invalid JSON body" },
+      { error: "title and artist are required" },
       { status: 400 }
     );
+  }
+
+  const yearParsed = parseYear(year);
+  if (!yearParsed.ok) {
+    return NextResponse.json({ error: yearParsed.error }, { status: 400 });
+  }
+  if (yearParsed.value == null) {
+    return NextResponse.json(
+      { error: "year is required for update" },
+      { status: 400 }
+    );
+  }
+
+  let client;
+  try {
+    client = await getPool().connect();
+  } catch (err) {
+    console.error("PUT /api/albums/[albumId] database connection error:", err);
+    const message =
+      err instanceof Error ? err.message : "Database connection failed";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+
+  try {
+    await client.query("BEGIN");
+    const updateRes = await client.query(
+      `UPDATE albums
+       SET title = $1, artist = $2, description = $3, year = $4, image = $5
+       WHERE id = $6`,
+      [
+        titleStr,
+        artistStr,
+        description ?? null,
+        yearParsed.value,
+        image ?? null,
+        albumId,
+      ]
+    );
+    if (updateRes.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return NextResponse.json({ error: "Album not found" }, { status: 404 });
+    }
+
+    await client.query("DELETE FROM tracks WHERE album_id = $1", [albumId]);
+
+    if (Array.isArray(tracks)) {
+      for (const t of tracks as Track[]) {
+        if (t.title == null) continue;
+        const titleTrim = String(t.title).trim();
+        if (!titleTrim) continue;
+        const rawNum = (t as { number?: unknown }).number;
+        let num: number | null =
+          rawNum === "" || rawNum == null ? null : Number(rawNum);
+        if (num != null && Number.isNaN(num)) {
+          await client.query("ROLLBACK");
+          return NextResponse.json(
+            { error: "track.number must be a number" },
+            { status: 400 }
+          );
+        }
+        if (num == null) num = 0;
+        await client.query(
+          `INSERT INTO tracks (album_id, title, number, lyrics, video_url)
+           VALUES ($1, $2, $3, $4, $5)`,
+          [albumId, titleTrim, num, t.lyrics ?? null, t.video ?? null]
+        );
+      }
+    }
+
+    await client.query("COMMIT");
+    return NextResponse.json({ id: albumId }, { status: 200 });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("PUT /api/albums/[albumId] transaction error:", err);
+    return NextResponse.json(
+      { error: "Error updating album" },
+      { status: 500 }
+    );
+  } finally {
+    client.release();
   }
 }
