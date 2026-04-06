@@ -4,12 +4,25 @@ import type {
   AlbumUpdatePayload,
 } from "@/lib/types";
 
+/** Ensures we never treat an error object `{ error: string }` as album data. */
+export function parseAlbumsJson(json: unknown): Album[] | null {
+  if (Array.isArray(json)) {
+    return json as Album[];
+  }
+  return null;
+}
+
 export async function fetchAlbums(): Promise<Album[]> {
   const res = await fetch("/api/albums", { cache: "no-store" });
+  const json: unknown = await res.json();
   if (!res.ok) {
     throw new Error(`Failed to load albums: ${res.status}`);
   }
-  return res.json() as Promise<Album[]>;
+  const albums = parseAlbumsJson(json);
+  if (!albums) {
+    throw new Error("Invalid album response: expected a JSON array");
+  }
+  return albums;
 }
 
 export async function postAlbum(

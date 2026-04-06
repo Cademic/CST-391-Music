@@ -7,7 +7,9 @@
 // not axios and not a hardcoded API host (Vercel-safe relative paths).
 
 import type { Album } from "@/lib/types";
+import fallbackAlbums from "@/lib/albums-fallback.json";
 import SearchAlbum from "@/components/music/SearchAlbum";
+import { parseAlbumsJson } from "@/components/music/music-api";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 // import EditAlbum from "@/components/music/EditAlbum";
@@ -22,17 +24,44 @@ export default function Page() {
   const [searchPhrase, setSearchPhrase] = useState("");
   const [albumList, setAlbumList] = useState<Album[]>([]);
   const [, setCurrentlySelectedAlbumId] = useState(0);
+  const [loadNote, setLoadNote] = useState<string | null>(null);
 
   const router = useRouter();
 
-  // ItemList-style: load data with fetch + relative URL; type the JSON as Album[]
+  // ItemList-style fetch + guard: 500 responses return { error } — not an array (avoid .filter crash)
   useEffect(() => {
-    fetch("/api/albums")
-      .then((res) => res.json())
-      .then((data: Album[]) => {
-        console.log("Fetched albums:", data);
-        setAlbumList(data);
-      });
+    void (async () => {
+      try {
+        const res = await fetch("/api/albums");
+        const json: unknown = await res.json();
+        const parsed = parseAlbumsJson(json);
+
+        if (res.ok && parsed) {
+          console.log("Fetched albums:", parsed);
+          setAlbumList(parsed);
+          setLoadNote(null);
+          return;
+        }
+
+        console.warn(
+          "GET /api/albums not usable (status or non-array body). Using bundled fallback.",
+          res.status,
+          json
+        );
+        setAlbumList(fallbackAlbums as unknown as Album[]);
+        setLoadNote(
+          res.ok
+            ? "API returned non-array JSON; showing bundled sample albums."
+            : `API error (${res.status}). Showing bundled sample albums — set POSTGRES_URL / DATABASE_URL on Vercel for live data.`
+        );
+      } catch (e) {
+        console.error(e);
+        setAlbumList(fallbackAlbums as unknown as Album[]);
+        setLoadNote(
+          "Network or parse error. Showing bundled sample albums — set POSTGRES_URL / DATABASE_URL on Vercel for live data."
+        );
+      }
+    })();
   }, []);
 
   const updateSearchResults = async (phrase: string) => {
@@ -70,6 +99,12 @@ export default function Page() {
         <strong>Student:</strong> {STUDENT_NAME}
       </p>
 
+      {loadNote ? (
+        <div className="alert alert-warning small" role="status">
+          {loadNote}
+        </div>
+      ) : null}
+
       {/* Ported SearchAlbum: props from parent (course handout), not axios / not react-router */}
       <SearchAlbum
         updateSearchResults={updateSearchResults}
@@ -99,7 +134,7 @@ export default function Page() {
       >
         {albumList.length > 0 && JSON.stringify(albumList, null, 2)}
       </pre>
-      {albumList.length === 0 && <p>Loading albums...</p>}
+      {albumList.length === 0 && !loadNote && <p>Loading albums...</p>}
     </main>
   );
 }
