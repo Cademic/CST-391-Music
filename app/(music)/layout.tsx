@@ -1,6 +1,6 @@
 "use client";
 
-import NavBar from "@/components/music/NavBar";
+import NavBar from "@/components/NavBar";
 import "@/components/music/music-app.css";
 
 export default function MusicLayout({

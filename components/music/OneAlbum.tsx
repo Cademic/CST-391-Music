@@ -40,18 +40,30 @@ export default function OneAlbum({ album }: OneAlbumProps) {
     );
   }
 
+  const coverSrc = album.image?.trim() || null;
+
   return (
     <div className="container">
       <h2>Album Details for {album.title}</h2>
       <div className="row">
         <div className="col col-sm-3">
           <div className="card">
-            {/* eslint-disable-next-line @next/next/no-img-element -- remote Wikimedia URLs */}
-            <img
-              src={album.image ?? ""}
-              className="card-img-top"
-              alt={album.title}
-            />
+            {coverSrc ? (
+              /* eslint-disable-next-line @next/next/no-img-element -- remote Wikimedia URLs */
+              <img
+                src={coverSrc}
+                className="card-img-top"
+                alt={album.title}
+              />
+            ) : (
+              <div
+                className="card-img-top bg-body-secondary d-flex align-items-center justify-content-center text-muted small"
+                style={{ minHeight: "8rem" }}
+                role="presentation"
+              >
+                No cover
+              </div>
+            )}
             <div className="card-body">
               <h5 className="card-title">{album.title}</h5>
               <p className="card-text">{album.description}</p>

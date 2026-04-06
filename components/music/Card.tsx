@@ -22,10 +22,22 @@ export default function Card({
     onClick(id, uri);
   };
 
+  const coverSrc = imgURL?.trim() || null;
+
   return (
     <div className="card" style={{ width: "18rem" }}>
-      {/* eslint-disable-next-line @next/next/no-img-element -- remote album art URLs */}
-      <img src={imgURL ?? ""} className="card-img-top" alt={albumTitle} />
+      {coverSrc ? (
+        /* eslint-disable-next-line @next/next/no-img-element -- remote album art URLs */
+        <img src={coverSrc} className="card-img-top" alt={albumTitle} />
+      ) : (
+        <div
+          className="card-img-top bg-body-secondary d-flex align-items-center justify-content-center text-muted small"
+          style={{ minHeight: "8rem" }}
+          role="presentation"
+        >
+          No cover
+        </div>
+      )}
       <div className="card-body">
         <h5 className="card-title">{albumTitle}</h5>
         <p className="card-text">{albumDescription}</p>
