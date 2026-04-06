@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPool } from "@/lib/db";
+import {
+  memoryCreateAlbum,
+  memoryGetAllAlbums,
+  memoryUpdateAlbum,
+  normalizeTracksInput,
+} from "@/lib/albums-memory-store";
+import { getPool, hasDatabaseUrl } from "@/lib/db";
 import type { Album, Track } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -26,6 +32,22 @@ export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url);
     const idParam = url.searchParams.get("id") ?? url.searchParams.get("albumId");
+
+    if (!hasDatabaseUrl()) {
+      let list = memoryGetAllAlbums();
+      if (idParam) {
+        const idNum = parseInt(idParam, 10);
+        if (Number.isNaN(idNum)) {
+          return NextResponse.json(
+            { error: "Invalid id query parameter" },
+            { status: 400 }
+          );
+        }
+        list = list.filter((a) => a.id === idNum);
+      }
+      return NextResponse.json(list);
+    }
+
     let albumsData: AlbumRow[];
 
     if (idParam) {
@@ -129,6 +151,19 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  if (!hasDatabaseUrl()) {
+    const trackList = normalizeTracksInput(tracks);
+    const created = memoryCreateAlbum({
+      title: titleStr,
+      artist: artistStr,
+      year: yearParsed.value,
+      description: description == null ? null : String(description),
+      image: image == null || image === "" ? null : String(image),
+      tracks: trackList,
+    });
+    return NextResponse.json({ id: created.id }, { status: 201 });
+  }
+
   let client;
   try {
     client = await getPool().connect();
@@ -218,6 +253,22 @@ export async function PUT(request: NextRequest) {
       { error: "year is required for update" },
       { status: 400 }
     );
+  }
+
+  if (!hasDatabaseUrl()) {
+    const trackList = normalizeTracksInput(tracks);
+    const result = memoryUpdateAlbum(albumId, {
+      title: titleStr,
+      artist: artistStr,
+      year: yearParsed.value,
+      description: description == null ? null : String(description),
+      image: image == null || image === "" ? null : String(image),
+      tracks: trackList,
+    });
+    if (!result.ok) {
+      return NextResponse.json({ error: "Album not found" }, { status: 404 });
+    }
+    return NextResponse.json({ id: albumId }, { status: 200 });
   }
 
   let client;

@@ -2,6 +2,11 @@ import { Pool } from "pg";
 
 let poolInstance: Pool | undefined;
 
+/** When false, `/api/albums` uses in-memory demo data (see `albums-memory-store.ts`). */
+export function hasDatabaseUrl(): boolean {
+  return Boolean(process.env.POSTGRES_URL ?? process.env.DATABASE_URL);
+}
+
 /**
  * Lazy Postgres pool so importing this module during `next build` does not
  * require DATABASE_URL (set it in Vercel → Environment Variables for runtime).
@@ -27,6 +32,9 @@ export interface DatabaseHealth {
 }
 
 export async function checkDatabaseConnection(): Promise<DatabaseHealth> {
+  if (!hasDatabaseUrl()) {
+    return { isConnected: false };
+  }
   const result = await getPool().query("SELECT 1 AS result");
   const isConnected = result.rows?.[0]?.result === 1;
 

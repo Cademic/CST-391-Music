@@ -1,8 +1,23 @@
 import { NextResponse } from "next/server";
-import { checkDatabaseConnection, getFirstArtist } from "@/lib/db";
+import {
+  checkDatabaseConnection,
+  getFirstArtist,
+  hasDatabaseUrl,
+} from "@/lib/db";
 
 export async function GET() {
   try {
+    if (!hasDatabaseUrl()) {
+      const author = process.env.DB_CHECK_AUTHOR ?? "Your Name";
+      return NextResponse.json({
+        status: "ok",
+        mode: "memory",
+        message:
+          "No database URL configured. /api/albums uses in-memory data seeded from albums-fallback.json.",
+        author,
+      });
+    }
+
     const { isConnected } = await checkDatabaseConnection();
 
     if (!isConnected) {
@@ -20,6 +35,7 @@ export async function GET() {
 
     return NextResponse.json({
       status: "ok",
+      mode: "postgres",
       message: "Database connection successful.",
       author,
       sampleArtist: sampleArtist ?? "(no albums yet)",
