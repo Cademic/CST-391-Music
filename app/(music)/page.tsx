@@ -1,6 +1,6 @@
 "use client";
  
-import AlbumList from "@/app/components/AlbumList";
+import SearchAlbum from "@/app/components/SearchAlbum";
 import { get } from "@/lib/apiClient";
 import type { Album } from "@/lib/types";
 import { useEffect, useState } from "react";
@@ -47,7 +47,7 @@ export default function Page() {
       {isLoaded && albumList.length > 0 ? (
         <>
           <h2 className="h5 mb-3">Album List</h2>
-          <AlbumList albums={albumList} />
+          <SearchAlbum albums={albumList} />
         </>
       ) : null}
 

@@ -1,31 +1,22 @@
 "use client";
 
-import OneAlbum from "@/components/music/OneAlbum";
-import { AlbumProvider, useAlbums } from "@/components/music/album-context";
+import EditAlbumPage from "@/app/(music)/edit/[albumId]/page";
 import { useParams } from "next/navigation";
 
-function ShowAlbumContent() {
+export default function ShowAlbumPage() {
   const params = useParams();
   const raw = params.id;
-  const id = typeof raw === "string" ? Number(raw) : NaN;
-  const { getAlbumById, isLoading } = useAlbums();
-  const album = Number.isNaN(id) ? null : getAlbumById(id);
+  const albumId =
+    typeof raw === "string" ? raw : Array.isArray(raw) ? raw[0] : undefined;
 
-  if (isLoading) {
+  if (!albumId) {
     return (
       <div className="container p-4">
-        <p>Loading…</p>
+        <p>Album not found.</p>
       </div>
     );
   }
 
-  return <OneAlbum key={Number.isNaN(id) ? "invalid" : id} album={album} />;
-}
-
-export default function ShowAlbumPage() {
-  return (
-    <AlbumProvider>
-      <ShowAlbumContent />
-    </AlbumProvider>
-  );
+  // Suggested improvement: reuse edit page as read-only detailed view.
+  return <EditAlbumPage forcedReadOnly forcedAlbumId={albumId} />;
 }

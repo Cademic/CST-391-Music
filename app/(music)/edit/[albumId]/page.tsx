@@ -5,6 +5,7 @@
 import { get, post, put } from "@/lib/apiClient";
 import type { Album, Track } from "@/lib/types";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import type { ChangeEvent, FormEvent } from "react";
 import { useEffect, useState } from "react";
 
@@ -13,17 +14,26 @@ import { useEffect, useState } from "react";
  * - `/edit/[albumId]` — load album with GET, submit with PUT `/api/albums/:albumId`
  * - `/new` — re-exported from `app/(music)/new/page.tsx`; no `albumId` → POST `/api/albums`
  */
-export default function EditAlbumPage() {
+interface EditAlbumPageProps {
+  forcedReadOnly?: boolean;
+  forcedAlbumId?: string;
+}
+
+export default function EditAlbumPage({
+  forcedReadOnly = false,
+  forcedAlbumId,
+}: EditAlbumPageProps = {}) {
   const router = useRouter();
   // Next.js `useParams` replaces `useParams` from react-router; keys match dynamic segment names.
   const params = useParams();
-  const rawAlbumId = params?.albumId;
+  const rawAlbumId = forcedAlbumId ?? params?.albumId;
   const albumId =
     typeof rawAlbumId === "string"
       ? rawAlbumId
       : Array.isArray(rawAlbumId)
         ? rawAlbumId[0]
         : undefined;
+  const isReadOnly = forcedReadOnly;
 
   // `albumId` is undefined when this component is mounted as `/new` (no `[albumId]` in the URL).
   const defaultAlbum: Album = {
@@ -54,6 +64,10 @@ export default function EditAlbumPage() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (isReadOnly) {
+      router.push("/");
+      return;
+    }
     try {
       if (albumId) {
         await put<{ id: number }, Album>(`/albums/${albumId}`, album);
@@ -77,7 +91,9 @@ export default function EditAlbumPage() {
 
   return (
     <main className="container py-4" style={{ maxWidth: "36rem" }}>
-      <h1 className="mb-4">{albumId ? "Edit Album" : "Create Album"}</h1>
+      <h1 className="mb-4">
+        {isReadOnly ? "Album Details" : albumId ? "Edit Album" : "Create Album"}
+      </h1>
       <form onSubmit={handleSubmit}>
         <div className="mb-3">
           <label htmlFor="album-title" className="form-label">
@@ -89,6 +105,7 @@ export default function EditAlbumPage() {
             placeholder="Title"
             value={album.title}
             onChange={onChange("title")}
+            readOnly={isReadOnly}
           />
         </div>
         <div className="mb-3">
@@ -101,6 +118,7 @@ export default function EditAlbumPage() {
             placeholder="Artist"
             value={album.artist}
             onChange={onChange("artist")}
+            readOnly={isReadOnly}
           />
         </div>
         <div className="mb-3">
@@ -120,6 +138,7 @@ export default function EditAlbumPage() {
                 year: v === "" ? 0 : Number(v),
               }));
             }}
+            readOnly={isReadOnly}
           />
         </div>
         <div className="mb-3">
@@ -133,6 +152,7 @@ export default function EditAlbumPage() {
             rows={4}
             value={album.description ?? ""}
             onChange={onChange("description")}
+            readOnly={isReadOnly}
           />
         </div>
         <div className="mb-3">
@@ -145,11 +165,18 @@ export default function EditAlbumPage() {
             placeholder="Image URL"
             value={album.image ?? ""}
             onChange={onChange("image")}
+            readOnly={isReadOnly}
           />
         </div>
-        <button type="submit" className="btn btn-primary">
-          {albumId ? "Update" : "Save"}
-        </button>
+        {isReadOnly ? (
+          <Link href="/" className="btn btn-secondary">
+            Home
+          </Link>
+        ) : (
+          <button type="submit" className="btn btn-primary">
+            {albumId ? "Update" : "Save"}
+          </button>
+        )}
       </form>
     </main>
   );
