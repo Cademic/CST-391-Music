@@ -2,7 +2,7 @@
 // (File lives under `app/(music)/edit/...`; the `(music)` group does not affect the URL — routes are still `/edit/:albumId` and `/new`.)
 "use client";
 
-import { get } from "@/lib/apiClient";
+import { get, post, put } from "@/lib/apiClient";
 import type { Album, Track } from "@/lib/types";
 import { useParams, useRouter } from "next/navigation";
 import type { ChangeEvent, FormEvent } from "react";
@@ -54,20 +54,19 @@ export default function EditAlbumPage() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    const method = albumId ? "PUT" : "POST";
-    const url = albumId ? `/api/albums/${albumId}` : `/api/albums`;
-    const res = await fetch(url, {
-      method,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(album),
-    });
-    if (!res.ok) {
-      const text = await res.text();
-      console.error("Save failed:", text);
-      alert(text || `Save failed (${res.status})`);
-      return;
+    try {
+      if (albumId) {
+        await put<{ id: number }, Album>(`/albums/${albumId}`, album);
+      } else {
+        await post<{ id: number }, Album>("/albums", album);
+      }
+      router.push("/");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to save album";
+      console.error("Save failed:", error);
+      alert(message);
     }
-    router.push("/");
   };
 
   const onChange =

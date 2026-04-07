@@ -1,96 +1,37 @@
 "use client";
-
-// CHANGED: Next.js uses TypeScript and server/client separation.
-// This component uses hooks and interactivity, so we must mark it as a Client Component.
-//
-// Follows the course ItemList pattern: fetch("/api/...") + explicit Album[] typing,
-// not axios and not a hardcoded API host (Vercel-safe relative paths).
-
+ 
+import AlbumCard from "@/app/components/AlbumCard";
+import { get } from "@/lib/apiClient";
 import type { Album } from "@/lib/types";
-import fallbackAlbums from "@/lib/albums-fallback.json";
-import SearchAlbum from "@/components/music/SearchAlbum";
-import { parseAlbumsJson } from "@/components/music/music-api";
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-// import EditAlbum from "@/components/music/EditAlbum";
-// import OneAlbum from "@/components/music/OneAlbum";
-// NavBar: rendered in app/(music)/layout.tsx (replaces inline <NavBar /> from CRA App.js)
 
-/** For assignment screenshots — shown on the home screen. */
 const STUDENT_NAME = "Carter Wright";
 
-// CHANGED: In Next.js, CRA "App" is replaced by a route-level component: page.tsx
 export default function Page() {
-  const [searchPhrase, setSearchPhrase] = useState("");
   const [albumList, setAlbumList] = useState<Album[]>([]);
-  const [, setCurrentlySelectedAlbumId] = useState(0);
-  const [loadNote, setLoadNote] = useState<string | null>(null);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
 
-  const router = useRouter();
-
-  // ItemList-style fetch + guard: 500 responses return { error } — not an array (avoid .filter crash)
   useEffect(() => {
     void (async () => {
       try {
-        const res = await fetch("/api/albums");
-        const json: unknown = await res.json();
-        const parsed = parseAlbumsJson(json);
-
-        if (res.ok && parsed) {
-          console.log("Fetched albums:", parsed);
-          setAlbumList(parsed);
-          setLoadNote(null);
-          return;
-        }
-
-        console.warn(
-          "GET /api/albums not usable (status or non-array body). Using bundled fallback.",
-          res.status,
-          json
-        );
-        setAlbumList(fallbackAlbums as unknown as Album[]);
-        setLoadNote(
-          res.ok
-            ? "API returned non-array JSON; showing bundled sample albums."
-            : `API error (${res.status}). Showing bundled sample albums — set POSTGRES_URL / DATABASE_URL on Vercel for live data.`
-        );
+        const albums = await get<Album[]>("/albums");
+        setAlbumList(albums);
+        setApiError(null);
       } catch (e) {
-        console.error(e);
-        setAlbumList(fallbackAlbums as unknown as Album[]);
-        setLoadNote(
-          "Network or parse error. Showing bundled sample albums — set POSTGRES_URL / DATABASE_URL on Vercel for live data."
-        );
+        const message =
+          e instanceof Error
+            ? e.message
+            : "Unexpected error while fetching albums";
+        console.error("Failed to load albums:", e);
+        setAlbumList([]);
+        setApiError(message);
+      } finally {
+        setIsLoaded(true);
       }
     })();
   }, []);
-
-  const updateSearchResults = async (phrase: string) => {
-    console.log("phrase is " + phrase);
-    setSearchPhrase(phrase);
-  };
-
-  // CHANGED: replace navigate() with router.push()
-  // Dynamic routes are app/(music)/show/[id] and edit/[albumId] — URL segment is album id, not array index.
-  const updateSingleAlbum = (albumId: number, uri: string) => {
-    console.log("Update Single Album = ", albumId);
-    const indexNumber = albumList.findIndex((a) => a.id === albumId);
-    setCurrentlySelectedAlbumId(indexNumber);
-    const path = `${uri}${albumId}`;
-    console.log("path", path);
-    router.push(path);
-  };
-
-  const renderedList = albumList.filter((album) => {
-    if (
-      (album.description ?? "")
-        .toLowerCase()
-        .includes(searchPhrase.toLowerCase()) ||
-      searchPhrase === ""
-    ) {
-      return true;
-    }
-    return false;
-  });
+  const firstAlbum = albumList[0] ?? null;
 
   return (
     <main className="container py-4">
@@ -99,40 +40,26 @@ export default function Page() {
         <strong>Student:</strong> {STUDENT_NAME}
       </p>
 
-      {loadNote ? (
-        <div className="alert alert-warning small" role="status">
-          {loadNote}
+      {apiError ? (
+        <div className="alert alert-danger" role="alert">
+          <strong>Client API error:</strong> {apiError}
         </div>
       ) : null}
 
-      {/* Ported SearchAlbum: props from parent (course handout), not axios / not react-router */}
-      <SearchAlbum
-        updateSearchResults={updateSearchResults}
-        albumList={renderedList}
-        updateSingleAlbum={updateSingleAlbum}
-      />
+      {isLoaded && firstAlbum ? (
+        <section aria-label="First fetched album">
+          <h2 className="h5 mb-3">First Album Fetched</h2>
+          <AlbumCard album={firstAlbum} />
+        </section>
+      ) : null}
 
-      <hr className="my-4" />
+      {isLoaded && !apiError && !firstAlbum ? (
+        <p>No albums returned by the API.</p>
+      ) : null}
 
-      {/* Quick Win: optional debug block — raw JSON from the same /api/albums response */}
-      <h2 className="h5">Debug: API JSON (Quick Win)</h2>
-      <p className="small text-muted">
-        This JSON data is rendered directly from the API response.
-      </p>
-      <pre
-        style={{
-          backgroundColor: "#f4f4f4",
-          padding: "1rem",
-          borderRadius: "8px",
-          overflow: "auto",
-          color: "#111",
-          fontSize: "0.9rem",
-          lineHeight: "1.4",
-        }}
-      >
-        {albumList.length > 0 && JSON.stringify(albumList, null, 2)}
-      </pre>
-      {albumList.length === 0 && !loadNote && <p>Loading albums...</p>}
+      {!isLoaded ? (
+        <p>Loading albums...</p>
+      ) : null}
     </main>
   );
 }
