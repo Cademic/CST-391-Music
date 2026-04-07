@@ -1,6 +1,6 @@
 "use client";
  
-import AlbumCard from "@/app/components/AlbumCard";
+import AlbumList from "@/app/components/AlbumList";
 import { get } from "@/lib/apiClient";
 import type { Album } from "@/lib/types";
 import { useEffect, useState } from "react";
@@ -31,8 +31,6 @@ export default function Page() {
       }
     })();
   }, []);
-  const firstAlbum = albumList[0] ?? null;
-
   return (
     <main className="container py-4">
       <h1 className="mb-2">Sparks Album List</h1>
@@ -46,14 +44,14 @@ export default function Page() {
         </div>
       ) : null}
 
-      {isLoaded && firstAlbum ? (
-        <section aria-label="First fetched album">
-          <h2 className="h5 mb-3">First Album Fetched</h2>
-          <AlbumCard album={firstAlbum} />
-        </section>
+      {isLoaded && albumList.length > 0 ? (
+        <>
+          <h2 className="h5 mb-3">Album List</h2>
+          <AlbumList albums={albumList} />
+        </>
       ) : null}
 
-      {isLoaded && !apiError && !firstAlbum ? (
+      {isLoaded && !apiError && albumList.length === 0 ? (
         <p>No albums returned by the API.</p>
       ) : null}
 
