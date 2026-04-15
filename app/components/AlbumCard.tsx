@@ -1,12 +1,16 @@
 "use client";
 
 import type { Album } from "@/lib/types";
+import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
 // A component to display individual album info, not included in Next.js routing.
 // app/components/AlbumCard.tsx
 export default function AlbumCard({ album }: { album: Album }) {
   const router = useRouter();
+  const { data: session, status } = useSession();
+  const isAdmin = session?.user?.role === "admin";
+  const isAuthenticated = status === "authenticated";
   const coverSrc = album.image?.trim() || null;
 
   return (
@@ -30,24 +34,28 @@ export default function AlbumCard({ album }: { album: Album }) {
         </p>
         <p className="card-text">{album.description ?? "No description."}</p>
         <div className="d-flex gap-2">
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={() => {
-              if (album.id != null) router.push(`/show/${album.id}`);
-            }}
-          >
-            View
-          </button>
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={() => {
-              if (album.id != null) router.push(`/edit/${album.id}`);
-            }}
-          >
-            Edit
-          </button>
+          {isAuthenticated ? (
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => {
+                if (album.id != null) router.push(`/show/${album.id}`);
+              }}
+            >
+              View
+            </button>
+          ) : null}
+          {isAdmin ? (
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => {
+                if (album.id != null) router.push(`/edit/${album.id}`);
+              }}
+            >
+              Edit
+            </button>
+          ) : null}
         </div>
       </div>
     </div>

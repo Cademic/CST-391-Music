@@ -1,13 +1,13 @@
 "use client";
- 
+
 import SearchAlbum from "@/app/components/SearchAlbum";
 import { get } from "@/lib/apiClient";
 import type { Album } from "@/lib/types";
+import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 
-const STUDENT_NAME = "Carter Wright";
-
 export default function Page() {
+  const { data: session } = useSession();
   const [albumList, setAlbumList] = useState<Album[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
@@ -35,7 +35,7 @@ export default function Page() {
     <main className="container py-4">
       <h1 className="mb-2">Sparks Album List</h1>
       <p className="mb-3">
-        <strong>Student:</strong> {STUDENT_NAME}
+        <strong>User:</strong> {session?.user?.email ?? "guest"}
       </p>
 
       {apiError ? (
